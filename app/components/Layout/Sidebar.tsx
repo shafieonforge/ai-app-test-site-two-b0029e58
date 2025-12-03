@@ -20,11 +20,11 @@ import {
 interface SidebarProps {
   isCollapsed: boolean;
   userRole: string;
+  onModuleChange: (module: string) => void;
+  activeModule: string;
 }
 
-export default function Sidebar({ isCollapsed, userRole }: SidebarProps) {
-  const pathname = usePathname();
-
+export default function Sidebar({ isCollapsed, userRole, onModuleChange, activeModule }: SidebarProps) {
   const navigationItems = [
     {
       section: 'Core Modules',
@@ -32,28 +32,24 @@ export default function Sidebar({ isCollapsed, userRole }: SidebarProps) {
         { 
           id: 'dashboard', 
           name: 'Dashboard', 
-          href: '/dashboard', 
           icon: BarChart3,
           roles: ['admin', 'executive', 'underwriter', 'adjuster']
         },
         { 
           id: 'claims', 
           name: 'Claims Processing', 
-          href: '/claims', 
           icon: FileText,
           roles: ['admin', 'adjuster', 'executive']
         },
         { 
           id: 'policies', 
           name: 'Policy Management', 
-          href: '/policies', 
           icon: Shield,
           roles: ['admin', 'underwriter', 'executive']
         },
         { 
           id: 'underwriting', 
           name: 'Underwriting Intel', 
-          href: '/underwriting', 
           icon: TrendingUp,
           roles: ['admin', 'underwriter', 'executive']
         }
@@ -65,21 +61,18 @@ export default function Sidebar({ isCollapsed, userRole }: SidebarProps) {
         { 
           id: 'fraud', 
           name: 'Fraud Detection', 
-          href: '/fraud', 
           icon: AlertTriangle,
           roles: ['admin', 'adjuster', 'executive']
         },
         { 
           id: 'compliance', 
           name: 'Compliance', 
-          href: '/compliance', 
           icon: CheckSquare,
           roles: ['admin', 'auditor', 'executive']
         },
         { 
           id: 'analytics', 
           name: 'Analytics', 
-          href: '/analytics', 
           icon: DollarSign,
           roles: ['admin', 'executive']
         }
@@ -91,21 +84,18 @@ export default function Sidebar({ isCollapsed, userRole }: SidebarProps) {
         { 
           id: 'users', 
           name: 'User Management', 
-          href: '/users', 
           icon: Users,
           roles: ['admin']
         },
         { 
           id: 'settings', 
           name: 'Settings', 
-          href: '/settings', 
           icon: Settings,
           roles: ['admin', 'executive']
         },
         { 
           id: 'archive', 
           name: 'Document Archive', 
-          href: '/archive', 
           icon: Archive,
           roles: ['admin', 'auditor']
         }
@@ -114,11 +104,7 @@ export default function Sidebar({ isCollapsed, userRole }: SidebarProps) {
   ];
 
   const hasAccess = (roles: string[]) => {
-    return roles.includes(userRole);
-  };
-
-  const isActive = (href: string) => {
-    return pathname === href;
+    return roles.includes(userRole) || roles.includes('admin');
   };
 
   return (
@@ -152,13 +138,13 @@ export default function Sidebar({ isCollapsed, userRole }: SidebarProps) {
                 if (!hasAccess(item.roles)) return null;
                 
                 const Icon = item.icon;
-                const active = isActive(item.href);
+                const active = activeModule === item.id;
                 
                 return (
                   <li key={item.id}>
-                    <a
-                      href={item.href}
-                      className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg mx-2 transition-colors ${
+                    <button
+                      onClick={() => onModuleChange(item.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg mx-2 transition-colors ${
                         active
                           ? 'bg-blue-600 text-white'
                           : 'text-slate-300 hover:text-white hover:bg-slate-800'
@@ -166,7 +152,7 @@ export default function Sidebar({ isCollapsed, userRole }: SidebarProps) {
                     >
                       <Icon className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && <span>{item.name}</span>}
-                    </a>
+                    </button>
                   </li>
                 );
               })}
@@ -175,7 +161,6 @@ export default function Sidebar({ isCollapsed, userRole }: SidebarProps) {
         ))}
       </nav>
 
-      {/* User Role Badge */}
       {!isCollapsed && (
         <div className="absolute bottom-4 left-4 right-4">
           <div className="bg-slate-800 rounded-lg p-3">
