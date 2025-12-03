@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const data = await request.json();
     const {
       customerId,
@@ -52,7 +45,6 @@ export async function POST(request: NextRequest) {
         data: {
           policyNumber,
           customerId,
-          agentId: session.user.role === 'AGENT' ? session.user.id : null,
           productType,
           effectiveDate: effective,
           expirationDate: expiration,
@@ -143,7 +135,7 @@ export async function POST(request: NextRequest) {
         where: { id: newPolicy.id },
         data: {
           basePremium: totalPremium,
-          totalPremium: totalPremium, // Add taxes/fees calculation here
+          totalPremium: totalPremium,
           fees: calculateFees(totalPremium, productType),
           taxes: calculateTaxes(totalPremium, customer.address)
         }
@@ -157,18 +149,12 @@ export async function POST(request: NextRequest) {
           effectiveDate: effective,
           totalChange: totalPremium,
           description: 'New policy quote created',
-          processedBy: session.user.id
+          processedBy: 'system' // Would be user ID in real implementation
         }
       });
 
       return newPolicy;
     });
-
-    // Trigger underwriting rules
-    await runUnderwritingRules(policy);
-
-    // Generate policy documents
-    await generatePolicyDocuments(policy);
 
     return NextResponse.json({
       success: true,
@@ -187,11 +173,6 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '25');
@@ -216,11 +197,6 @@ export async function GET(request: NextRequest) {
           ]
         }}
       ];
-    }
-
-    // Role-based filtering
-    if (session.user.role === 'AGENT') {
-      where.agentId = session.user.id;
     }
 
     const [policies, total] = await Promise.all([
@@ -296,69 +272,13 @@ function calculateFees(premium: number, productType: string): number {
 }
 
 function calculateTaxes(premium: number, address: any): number {
-  // State-specific tax calculations
   const stateTaxRates: Record<string, number> = {
-    'CA': 0.025,  // 2.5%
-    'NY': 0.02,   // 2.0%
-    'TX': 0.0225, // 2.25%
-    'FL': 0.0175  // 1.75%
+    'CA': 0.025,
+    'NY': 0.02,
+    'TX': 0.0225,
+    'FL': 0.0175
   };
   
   const taxRate = stateTaxRates[address?.state] || 0.02;
   return premium * taxRate;
-}
-
-async function runUnderwritingRules(policy: any) {
-  // Implement underwriting rules engine
-  // Check for auto-bind criteria, referrals, etc.
-  
-  // Example: Auto-bind for low-risk policies
-  const riskScore = calculateRiskScore(policy);
-  
-  if (riskScore <= 30 && policy.totalPremium <= 2000) {
-    await db.policy.update({
-      where: { id: policy.id },
-      data: { 
-        bindingAuthority: 'AUTO_BIND',
-        riskScore,
-        underwritingTier: 'PREFERRED'
-      }
-    });
-  } else {
-    await db.policy.update({
-      where: { id: policy.id },
-      data: { 
-        bindingAuthority: 'UNDERWRITER_REVIEW',
-        riskScore,
-        underwritingTier: riskScore <= 50 ? 'STANDARD' : 'NON_STANDARD'
-      }
-    });
-  }
-}
-
-function calculateRiskScore(policy: any): number {
-  // Implement risk scoring algorithm
-  // Consider factors like location, coverage limits, driver history, etc.
-  return Math.floor(Math.random() * 100); // Placeholder
-}
-
-async function generatePolicyDocuments(policy: any) {
-  // Generate required policy documents
-  const documents = [
-    { type: 'POLICY_CONTRACT', name: 'Policy Declarations', required: true },
-    { type: 'COVERAGE_SUMMARY', name: 'Coverage Summary', required: true },
-    { type: 'TERMS_CONDITIONS', name: 'Terms and Conditions', required: true }
-  ];
-
-  await db.policyDocument.createMany({
-    data: documents.map(doc => ({
-      policyId: policy.id,
-      documentType: doc.type,
-      documentName: doc.name,
-      fileName: `${policy.policyNumber}_${doc.type}.pdf`,
-      filePath: `/documents/policies/${policy.policyNumber}/`,
-      isRequired: doc.required,
-      generatedDate: new Date()
-    }))
-  });
 }
