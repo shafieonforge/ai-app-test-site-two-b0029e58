@@ -3,21 +3,42 @@ import { db } from '@/lib/db';
 
 export async function GET() {
   try {
-    const customers = await db.customer.findMany({
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        businessName: true,
-        email: true,
-        customerType: true
+    // Mock customers data - replace with actual database query
+    const customers = [
+      { 
+        id: '1', 
+        firstName: 'John', 
+        lastName: 'Smith', 
+        email: 'john.smith@email.com',
+        customerType: 'INDIVIDUAL'
       },
-      orderBy: [
-        { lastName: 'asc' },
-        { firstName: 'asc' },
-        { businessName: 'asc' }
-      ]
-    });
+      { 
+        id: '2', 
+        firstName: 'Jane', 
+        lastName: 'Doe', 
+        email: 'jane.doe@email.com',
+        customerType: 'INDIVIDUAL'
+      },
+      { 
+        id: '3', 
+        businessName: 'Acme Delivery Corp', 
+        email: 'info@acmedelivery.com',
+        customerType: 'BUSINESS'
+      },
+      { 
+        id: '4', 
+        firstName: 'Bob', 
+        lastName: 'Johnson', 
+        email: 'bob.johnson@email.com',
+        customerType: 'INDIVIDUAL'
+      },
+      { 
+        id: '5', 
+        businessName: 'Tech Solutions LLC', 
+        email: 'contact@techsolutions.com',
+        customerType: 'BUSINESS'
+      }
+    ];
 
     return NextResponse.json({ customers });
   } catch (error) {
@@ -33,12 +54,12 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     
-    const customer = await db.customer.create({
-      data: {
-        ...data,
-        address: JSON.stringify(data.address) // Ensure address is stored as JSON
-      }
-    });
+    // Mock customer creation - replace with actual database insertion
+    const customer = {
+      id: Math.random().toString(36).substring(2),
+      ...data,
+      createdAt: new Date().toISOString()
+    };
 
     return NextResponse.json({
       success: true,

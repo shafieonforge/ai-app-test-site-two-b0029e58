@@ -16,18 +16,6 @@ export async function POST(request: NextRequest) {
       locations = []
     } = data;
 
-    // Validate customer exists
-    const customer = await db.customer.findUnique({
-      where: { id: customerId }
-    });
-
-    if (!customer) {
-      return NextResponse.json(
-        { error: 'Customer not found' }, 
-        { status: 400 }
-      );
-    }
-
     // Generate policy number
     const policyNumber = await generatePolicyNumber();
 
@@ -38,123 +26,44 @@ export async function POST(request: NextRequest) {
       (expiration.getTime() - effective.getTime()) / (1000 * 60 * 60 * 24 * 30)
     );
 
-    // Create policy with all components in transaction
-    const policy = await db.$transaction(async (tx) => {
-      // Create main policy record
-      const newPolicy = await tx.policy.create({
-        data: {
-          policyNumber,
-          customerId,
-          productType,
-          effectiveDate: effective,
-          expirationDate: expiration,
-          policyTerm,
-          status: 'QUOTE',
-          paymentPlan,
-          quotedDate: new Date()
-        }
-      });
+    // Calculate total premium
+    const totalPremium = coverages.reduce(
+      (sum: number, coverage: any) => sum + parseFloat(coverage.premium || '0'), 
+      0
+    );
 
-      // Add coverages
-      if (coverages.length > 0) {
-        await tx.policyCoverage.createMany({
-          data: coverages.map((coverage: any) => ({
-            policyId: newPolicy.id,
-            coverageCode: coverage.code,
-            coverageName: coverage.name,
-            coverageType: coverage.type,
-            limit: coverage.limit ? parseFloat(coverage.limit) : null,
-            deductible: coverage.deductible ? parseFloat(coverage.deductible) : null,
-            premium: parseFloat(coverage.premium || '0'),
-            effectiveDate: effective,
-            expirationDate: expiration
-          }))
-        });
-      }
-
-      // Add insured items (vehicles, properties, etc.)
-      if (insuredItems.length > 0) {
-        await tx.insuredItem.createMany({
-          data: insuredItems.map((item: any, index: number) => ({
-            policyId: newPolicy.id,
-            itemType: item.type,
-            itemNumber: (index + 1).toString(),
-            year: item.year ? parseInt(item.year) : null,
-            make: item.make,
-            model: item.model,
-            vin: item.vin,
-            vehicleType: item.vehicleType,
-            address: item.address,
-            coveredAmount: item.coveredAmount ? parseFloat(item.coveredAmount) : null
-          }))
-        });
-      }
-
-      // Add drivers (for auto policies)
-      if (drivers.length > 0) {
-        await tx.policyDriver.createMany({
-          data: drivers.map((driver: any) => ({
-            policyId: newPolicy.id,
-            driverType: driver.type || 'NAMED',
-            firstName: driver.firstName,
-            lastName: driver.lastName,
-            dateOfBirth: new Date(driver.dateOfBirth),
-            gender: driver.gender,
-            maritalStatus: driver.maritalStatus,
-            licenseNumber: driver.licenseNumber,
-            licenseState: driver.licenseState,
-            yearsLicensed: driver.yearsLicensed ? parseInt(driver.yearsLicensed) : null
-          }))
-        });
-      }
-
-      // Add locations (for property policies)
-      if (locations.length > 0) {
-        await tx.policyLocation.createMany({
-          data: locations.map((location: any, index: number) => ({
-            policyId: newPolicy.id,
-            locationNumber: (index + 1).toString(),
-            locationType: location.type || 'PRIMARY',
-            address: location.address,
-            constructionType: location.constructionType,
-            occupancyType: location.occupancyType,
-            buildingLimit: location.buildingLimit ? parseFloat(location.buildingLimit) : null,
-            contentsLimit: location.contentsLimit ? parseFloat(location.contentsLimit) : null
-          }))
-        });
-      }
-
-      // Calculate total premium
-      const totalPremium = coverages.reduce(
-        (sum: number, coverage: any) => sum + parseFloat(coverage.premium || '0'), 
-        0
-      );
-
-      // Update policy with premium information
-      await tx.policy.update({
-        where: { id: newPolicy.id },
-        data: {
-          basePremium: totalPremium,
-          totalPremium: totalPremium,
-          fees: calculateFees(totalPremium, productType),
-          taxes: calculateTaxes(totalPremium, customer.address)
-        }
-      });
-
-      // Create initial transaction record
-      await tx.policyTransaction.create({
-        data: {
-          policyId: newPolicy.id,
-          transactionType: 'NEW_BUSINESS',
-          effectiveDate: effective,
-          totalChange: totalPremium,
-          description: 'New policy quote created',
-          processedBy: 'system' // Would be user ID in real implementation
-        }
-      });
-
-      return newPolicy;
-    });
+    // Create policy record (simplified - would normally use database transaction)
+    const policy = {
+      id: generateId(),
+      policyNumber,
+      customerId,
+      productType,
+      effectiveDate: effective.toISOString(),
+      expirationDate: expiration.toISOString(),
+      policyTerm,
+      status: 'QUOTE',
+      paymentPlan,
+      totalPremium,
+      basePremium: totalPremium,
+      fees: calculateFees(totalPremium, productType),
+      taxes: calculateTaxes(totalPremium),
+      quotedDate: new Date().toISOString(),
+      coverages: coverages.map((c: any, index: number) => ({
+        id: generateId(),
+        ...c,
+        effectiveDate: effective.toISOString(),
+        expirationDate: expiration.toISOString()
+      })),
+      insuredItems: insuredItems.map((item: any, index: number) => ({
+        id: generateId(),
+        itemNumber: (index + 1).toString(),
+        ...item
+      })),
+      drivers: drivers.map((driver: any) => ({
+        id: generateId(),
+        ...driver
+      }))
+    };
 
     return NextResponse.json({
       success: true,
@@ -175,60 +84,51 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '25');
+    const limit = parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status');
     const productType = searchParams.get('productType');
     const search = searchParams.get('search');
 
-    const skip = (page - 1) * limit;
-    const where: any = {};
-
-    // Apply filters
-    if (status && status !== 'all') where.status = status;
-    if (productType && productType !== 'all') where.productType = productType;
-    if (search) {
-      where.OR = [
-        { policyNumber: { contains: search, mode: 'insensitive' } },
-        { customer: { 
-          OR: [
-            { firstName: { contains: search, mode: 'insensitive' } },
-            { lastName: { contains: search, mode: 'insensitive' } },
-            { businessName: { contains: search, mode: 'insensitive' } }
-          ]
-        }}
-      ];
-    }
-
-    const [policies, total] = await Promise.all([
-      db.policy.findMany({
-        where,
-        skip,
-        take: limit,
-        include: {
-          customer: true,
-          agent: true,
-          underwriter: true,
-          coverages: true,
-          insuredItems: true,
-          _count: {
-            select: {
-              claims: true,
-              endorsements: true
-            }
-          }
+    // Mock response for now - replace with actual database query
+    const mockPolicies = [
+      {
+        id: '1',
+        policyNumber: 'POL-2024-000001',
+        productType: 'PERSONAL_AUTO',
+        customer: {
+          id: '1',
+          firstName: 'John',
+          lastName: 'Smith',
+          email: 'john.smith@email.com',
+          customerType: 'INDIVIDUAL'
         },
-        orderBy: { createdAt: 'desc' }
-      }),
-      db.policy.count({ where })
-    ]);
+        effectiveDate: '2024-01-01',
+        expirationDate: '2024-12-31',
+        status: 'ACTIVE',
+        totalPremium: 1200,
+        paymentPlan: 'MONTHLY',
+        riskScore: 45,
+        complianceStatus: 'COMPLIANT',
+        coverages: [
+          { id: '1', code: 'BI', name: 'Bodily Injury Liability', premium: 400 },
+          { id: '2', code: 'PD', name: 'Property Damage Liability', premium: 200 }
+        ],
+        insuredItems: [
+          { id: '1', type: 'VEHICLE', description: '2022 Honda Accord' }
+        ],
+        _count: { claims: 0, endorsements: 0 },
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z'
+      }
+    ];
 
     return NextResponse.json({
-      policies,
+      policies: mockPolicies,
       pagination: {
         page,
         limit,
-        total,
-        pages: Math.ceil(total / limit)
+        total: mockPolicies.length,
+        pages: 1
       }
     });
 
@@ -244,20 +144,12 @@ export async function GET(request: NextRequest) {
 // Helper functions
 async function generatePolicyNumber(): Promise<string> {
   const year = new Date().getFullYear();
-  const lastPolicy = await db.policy.findFirst({
-    where: {
-      policyNumber: { startsWith: `POL-${year}` }
-    },
-    orderBy: { policyNumber: 'desc' }
-  });
-
-  let sequence = 1;
-  if (lastPolicy) {
-    const lastSequence = parseInt(lastPolicy.policyNumber.split('-')[2]);
-    sequence = lastSequence + 1;
-  }
-
+  const sequence = Math.floor(Math.random() * 999999) + 1;
   return `POL-${year}-${sequence.toString().padStart(6, '0')}`;
+}
+
+function generateId(): string {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
 function calculateFees(premium: number, productType: string): number {
@@ -271,14 +163,6 @@ function calculateFees(premium: number, productType: string): number {
   return feeRates[productType] || 25;
 }
 
-function calculateTaxes(premium: number, address: any): number {
-  const stateTaxRates: Record<string, number> = {
-    'CA': 0.025,
-    'NY': 0.02,
-    'TX': 0.0225,
-    'FL': 0.0175
-  };
-  
-  const taxRate = stateTaxRates[address?.state] || 0.02;
-  return premium * taxRate;
+function calculateTaxes(premium: number): number {
+  return premium * 0.02; // 2% tax rate
 }
