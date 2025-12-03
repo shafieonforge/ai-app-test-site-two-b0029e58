@@ -1,7 +1,7 @@
 'use client';
 
-import Component from './components/Component';
+import NewPolicyForm from './components/NewPolicyForm';
 
 export default function Home() {
-  return <Component />;
+  return <NewPolicyForm />;
 }
