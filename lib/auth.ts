@@ -1,7 +1,5 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { db } from './db';
-import { compare } from 'bcryptjs';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -12,29 +10,15 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Password', type: 'password' }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-
-        const user = await db.user.findUnique({
-          where: { email: credentials.email }
-        });
-
-        if (!user) {
-          return null;
-        }
-
-        // In production, you'd hash and compare passwords
-        // For demo purposes, we'll use a simple check
-        if (credentials.password === 'password123') {
+        // Demo authentication - in production use proper password hashing
+        if (credentials?.email === 'admin@acmeinsurance.com' && credentials?.password === 'password123') {
           return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
+            id: '1',
+            email: 'admin@acmeinsurance.com',
+            name: 'Admin User',
+            role: 'ADMIN',
           };
         }
-
         return null;
       }
     })
@@ -48,7 +32,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         return {
           ...token,
-          role: user.role,
+          role: (user as any).role,
         };
       }
       return token;

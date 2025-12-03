@@ -1,4 +1,3 @@
-// Unified type definitions
 export interface ProcessingFile {
   id: string;
   name: string;
@@ -40,35 +39,6 @@ export interface DashboardMetric {
   trend?: 'up' | 'down' | 'neutral';
 }
 
-// Insurance-specific types
-export interface Policy {
-  id: string;
-  policyNumber: string;
-  policyType: 'auto' | 'home' | 'commercial' | 'life' | 'health';
-  insuredName: string;
-  premiumAmount: number;
-  deductible: number;
-  effectiveDate: Date;
-  expirationDate: Date;
-  status: 'active' | 'expired' | 'cancelled' | 'pending';
-  riskScore: number;
-  complianceStatus: 'compliant' | 'non_compliant' | 'pending_review';
-  lastReview: Date;
-}
-
-export interface Claim {
-  id: string;
-  claimNumber: string;
-  policyNumber: string;
-  incidentDate: Date;
-  reportedDate: Date;
-  status: 'open' | 'investigating' | 'processing' | 'closed' | 'denied';
-  lossAmount: number;
-  reserveAmount: number;
-  description: string;
-  adjusterName?: string;
-}
-
 export interface User {
   id: string;
   email: string;
@@ -78,4 +48,13 @@ export interface User {
   permissions: string[];
   organization: string;
   lastLogin?: Date;
+}
+
+export interface Notification {
+  id: string;
+  type: 'info' | 'warning' | 'error' | 'success';
+  title: string;
+  message: string;
+  timestamp: Date;
+  read: boolean;
 }

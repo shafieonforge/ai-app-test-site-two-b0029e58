@@ -1,7 +1,7 @@
 'use client';
 
-import PolicyManagement from './components/PolicyManagement';
+import Component from './components/Component';
 
 export default function Home() {
-  return <PolicyManagement />;
+  return <Component />;
 }
