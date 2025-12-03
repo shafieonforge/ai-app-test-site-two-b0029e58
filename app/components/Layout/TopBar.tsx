@@ -1,18 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Bell, 
-  Search, 
-  Menu, 
-  User, 
-  Settings, 
+import {
+  Menu,
+  Bell,
+  User,
+  Search,
+  ChevronDown,
   LogOut,
-  Shield,
-  AlertTriangle,
-  CheckCircle,
-  Clock
+  Settings,
+  HelpCircle
 } from 'lucide-react';
+import { Notification } from '../../types';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
@@ -22,95 +21,75 @@ interface TopBarProps {
     role: string;
     organization: string;
   };
-  notifications: {
-    id: string;
-    type: 'info' | 'warning' | 'error' | 'success';
-    title: string;
-    message: string;
-    timestamp: Date;
-    read: boolean;
-  }[];
+  notifications: Notification[];
 }
 
 export default function TopBar({ onToggleSidebar, user, notifications }: TopBarProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'warning':
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+        return '⚠️';
       case 'error':
-        return <AlertTriangle className="h-4 w-4 text-red-500" />;
+        return '❌';
       case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return '✅';
       default:
-        return <Shield className="h-4 w-4 text-blue-500" />;
+        return 'ℹ️';
     }
   };
 
   const formatTimeAgo = (date: Date) => {
     const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
     
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays}d ago`;
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
+    <header className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex items-center justify-between">
         {/* Left Section */}
         <div className="flex items-center gap-4">
           <button
             onClick={onToggleSidebar}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label="Toggle sidebar"
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-5 w-5 text-gray-600" />
           </button>
 
-          {/* Global Search */}
-          <div className="relative">
+          {/* Search */}
+          <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search policies, claims, documents..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Search..."
+              className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
         </div>
 
         {/* Right Section */}
         <div className="flex items-center gap-4">
-          {/* Quick Stats */}
-          <div className="hidden lg:flex items-center gap-6 text-sm text-gray-600">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-blue-500" />
-              <span>23 pending reviews</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-green-500" />
-              <span>98.2% compliance</span>
-            </div>
-          </div>
-
           {/* Notifications */}
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              aria-label="Notifications"
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative"
             >
-              <Bell className="h-5 w-5" />
+              <Bell className="h-5 w-5 text-gray-600" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                   {unreadCount > 9 ? '9+' : unreadCount}
@@ -119,17 +98,21 @@ export default function TopBar({ onToggleSidebar, user, notifications }: TopBarP
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+              <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                 <div className="p-4 border-b border-gray-200">
                   <h3 className="font-semibold text-gray-900">Notifications</h3>
+                  {unreadCount > 0 && (
+                    <p className="text-sm text-gray-600">{unreadCount} unread</p>
+                  )}
                 </div>
+                
                 <div className="max-h-96 overflow-y-auto">
                   {notifications.length === 0 ? (
                     <div className="p-4 text-center text-gray-500">
-                      No new notifications
+                      No notifications
                     </div>
                   ) : (
-                    notifications.slice(0, 10).map((notification) => (
+                    notifications.slice(0, 5).map((notification) => (
                       <div
                         key={notification.id}
                         className={`p-4 border-b border-gray-100 hover:bg-gray-50 ${
@@ -137,7 +120,9 @@ export default function TopBar({ onToggleSidebar, user, notifications }: TopBarP
                         }`}
                       >
                         <div className="flex items-start gap-3">
-                          {getNotificationIcon(notification.type)}
+                          <span className="text-lg">
+                            {getNotificationIcon(notification.type)}
+                          </span>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-900">
                               {notification.title}
@@ -154,11 +139,14 @@ export default function TopBar({ onToggleSidebar, user, notifications }: TopBarP
                     ))
                   )}
                 </div>
-                <div className="p-3 border-t border-gray-200">
-                  <button className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium">
-                    View all notifications
-                  </button>
-                </div>
+                
+                {notifications.length > 5 && (
+                  <div className="p-3 border-t border-gray-200 text-center">
+                    <button className="text-sm text-blue-600 hover:text-blue-700">
+                      View all notifications
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -167,46 +155,45 @@ export default function TopBar({ onToggleSidebar, user, notifications }: TopBarP
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+              <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center">
                 <User className="h-4 w-4 text-white" />
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-gray-900">{user.name}</p>
                 <p className="text-xs text-gray-500 capitalize">{user.role}</p>
               </div>
+              <ChevronDown className="h-4 w-4 text-gray-500" />
             </button>
 
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                 <div className="p-4 border-b border-gray-200">
-                  <p className="font-semibold text-gray-900">{user.name}</p>
+                  <p className="font-medium text-gray-900">{user.name}</p>
                   <p className="text-sm text-gray-600">{user.email}</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {user.organization} • {user.role}
+                    {user.role} • {user.organization}
                   </p>
                 </div>
-                <div className="py-2">
-                  <a
-                    href="/profile"
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    <User className="h-4 w-4" />
-                    Profile Settings
-                  </a>
-                  <a
-                    href="/settings"
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    <Settings className="h-4 w-4" />
-                    System Settings
-                  </a>
-                  <div className="border-t border-gray-200 my-2"></div>
-                  <button className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left">
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
+                
+                <div className="p-2">
+                  <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 text-left">
+                    <Settings className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-700">Settings</span>
                   </button>
+                  
+                  <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 text-left">
+                    <HelpCircle className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-700">Help & Support</span>
+                  </button>
+                  
+                  <div className="border-t border-gray-100 mt-2 pt-2">
+                    <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-red-50 text-left text-red-600">
+                      <LogOut className="h-4 w-4" />
+                      <span className="text-sm">Sign Out</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
