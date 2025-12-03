@@ -8,39 +8,16 @@ import Dashboard from './Dashboard';
 import InsightsList from './InsightsList';
 import DocumentLibrary from './DocumentLibrary';
 
-// Types
-export interface ProcessingFile {
-  id: string;
-  name: string;
-  type: string;
-  status: 'waiting' | 'processing' | 'completed' | 'error';
-  progress: number;
-  insights?: string[];
-  error?: string;
-}
+// Re-export types for consistency
+export type { ProcessingFile } from './ProcessingStatus';
+export type { Insight } from './InsightsList';
+export type { Document } from './DocumentLibrary';
 
-export interface Insight {
-  id: string;
-  fileName: string;
-  type: 'summary' | 'metric' | 'trend' | 'anomaly' | 'recommendation';
-  title: string;
-  content: string;
-  confidence: number;
-  category: string;
-  timestamp: Date;
-  metadata?: Record<string, any>;
-}
-
-export interface Document {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  uploadDate: Date;
-  status: 'processed' | 'processing' | 'failed';
-  insightCount: number;
-  category?: string;
-  tags?: string[];
+export interface DashboardMetric {
+  label: string;
+  value: string | number;
+  change?: string;
+  trend?: 'up' | 'down' | 'neutral';
 }
 
 export default function Component() {
@@ -240,24 +217,24 @@ export default function Component() {
     console.log('Exporting all insights');
   }, []);
 
-  const keyMetrics = useMemo(() => [
+  const keyMetrics: DashboardMetric[] = useMemo(() => [
     {
       label: 'Total Revenue',
       value: '$2.4M',
       change: '+15% from last quarter',
-      trend: 'up' as const
+      trend: 'up'
     },
     {
       label: 'Processing Efficiency',
       value: '94%',
       change: '+2% improvement',
-      trend: 'up' as const
+      trend: 'up'
     },
     {
       label: 'Data Accuracy',
       value: '99.2%',
       change: 'Stable',
-      trend: 'neutral' as const
+      trend: 'neutral'
     }
   ], []);
 
@@ -313,6 +290,8 @@ export default function Component() {
               <button
                 key={key}
                 onClick={() => setActiveTab(key as any)}
+                role="tab"
+                aria-selected={activeTab === key}
                 className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === key
                     ? 'border-blue-500 text-blue-600'
