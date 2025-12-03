@@ -1,152 +1,110 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Shield,
-  Upload,
-  FileText,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  DollarSign,
-  Calendar,
-  User,
-  Home,
-  Car,
-  Building,
-  Heart,
+  Plus,
   Search,
   Filter,
-  Plus,
+  Shield,
+  Users,
+  Calendar,
+  DollarSign,
+  FileText,
+  Eye,
   Edit,
-  Trash2,
-  Eye
+  MoreVertical,
+  Download,
+  Clock
 } from 'lucide-react';
 
 interface Policy {
   id: string;
   policyNumber: string;
-  policyType: 'auto' | 'home' | 'commercial' | 'life' | 'health';
-  insuredName: string;
+  policyType: string;
+  status: string;
+  effectiveDate: string;
+  expirationDate: string;
   premiumAmount: number;
   deductible: number;
-  effectiveDate: Date;
-  expirationDate: Date;
-  status: 'active' | 'expired' | 'cancelled' | 'pending';
-  riskScore: number;
-  complianceStatus: 'compliant' | 'non_compliant' | 'pending_review';
-  lastReview: Date;
+  riskScore?: number;
+  customer: {
+    firstName?: string;
+    lastName?: string;
+    businessName?: string;
+    email: string;
+  };
+  coverages: any[];
+  _count: {
+    claims: number;
+    documents: number;
+  };
 }
 
 export default function PolicyManagement() {
-  const [policies, setPolicies] = useState<Policy[]>([
-    {
-      id: '1',
-      policyNumber: 'AUTO-2024-001',
-      policyType: 'auto',
-      insuredName: 'John Smith',
-      premiumAmount: 1200,
-      deductible: 500,
-      effectiveDate: new Date('2024-01-01'),
-      expirationDate: new Date('2024-12-31'),
-      status: 'active',
-      riskScore: 45,
-      complianceStatus: 'compliant',
-      lastReview: new Date('2024-01-15')
-    },
-    {
-      id: '2',
-      policyNumber: 'HOME-2024-002',
-      policyType: 'home',
-      insuredName: 'Jane Doe',
-      premiumAmount: 800,
-      deductible: 1000,
-      effectiveDate: new Date('2024-02-01'),
-      expirationDate: new Date('2025-01-31'),
-      status: 'active',
-      riskScore: 25,
-      complianceStatus: 'compliant',
-      lastReview: new Date('2024-02-10')
-    },
-    {
-      id: '3',
-      policyNumber: 'COMM-2024-003',
-      policyType: 'commercial',
-      insuredName: 'ABC Corp',
-      premiumAmount: 5000,
-      deductible: 2500,
-      effectiveDate: new Date('2024-01-15'),
-      expirationDate: new Date('2024-12-31'),
-      status: 'active',
-      riskScore: 65,
-      complianceStatus: 'pending_review',
-      lastReview: new Date('2024-01-20')
-    }
-  ]);
-
+  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
-  const getPolicyIcon = (type: string) => {
-    switch (type) {
-      case 'auto': return <Car className="h-5 w-5 text-blue-500" />;
-      case 'home': return <Home className="h-5 w-5 text-green-500" />;
-      case 'commercial': return <Building className="h-5 w-5 text-purple-500" />;
-      case 'life': return <Heart className="h-5 w-5 text-red-500" />;
-      case 'health': return <Heart className="h-5 w-5 text-pink-500" />;
-      default: return <Shield className="h-5 w-5 text-gray-500" />;
+  useEffect(() => {
+    fetchPolicies();
+  }, [searchTerm, statusFilter, typeFilter]);
+
+  const fetchPolicies = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (typeFilter !== 'all') params.append('type', typeFilter);
+
+      const response = await fetch(`/api/policies?${params}`);
+      const data = await response.json();
+      setPolicies(data.policies || []);
+    } catch (error) {
+      console.error('Error fetching policies:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800 border-green-200';
-      case 'expired': return 'bg-red-100 text-red-800 border-red-200';
-      case 'cancelled': return 'bg-gray-100 text-gray-800 border-gray-200';
-      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'ACTIVE':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'EXPIRED':
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'CANCELLED':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  const getComplianceColor = (status: string) => {
-    switch (status) {
-      case 'compliant': return 'text-green-600';
-      case 'non_compliant': return 'text-red-600';
-      case 'pending_review': return 'text-yellow-600';
-      default: return 'text-gray-600';
-    }
+  const getRiskScoreColor = (score?: number) => {
+    if (!score) return 'text-gray-400';
+    if (score >= 80) return 'text-red-600';
+    if (score >= 60) return 'text-yellow-600';
+    return 'text-green-600';
   };
 
-  const getRiskColor = (score: number) => {
-    if (score < 30) return 'text-green-600 bg-green-100';
-    if (score < 60) return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
   };
 
-  const filteredPolicies = policies.filter(policy => {
-    const matchesSearch = policy.policyNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         policy.insuredName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || policy.policyType === filterType;
-    const matchesStatus = filterStatus === 'all' || policy.status === filterStatus;
-    return matchesSearch && matchesType && matchesStatus;
-  });
-
-  const policyStats = {
-    total: policies.length,
-    active: policies.filter(p => p.status === 'active').length,
-    expiringSoon: policies.filter(p => {
-      const daysToExpiry = Math.ceil((p.expirationDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24));
-      return daysToExpiry <= 30 && daysToExpiry > 0;
-    }).length,
-    highRisk: policies.filter(p => p.riskScore >= 60).length
+  const getCustomerName = (customer: Policy['customer']) => {
+    if (customer.businessName) return customer.businessName;
+    return `${customer.firstName || ''} ${customer.lastName || ''}`.trim();
   };
-
-  const totalPremiumValue = policies
-    .filter(p => p.status === 'active')
-    .reduce((sum, p) => sum + p.premiumAmount, 0);
 
   return (
     <div className="space-y-6">
@@ -154,30 +112,27 @@ export default function PolicyManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Policy Management</h1>
-          <p className="text-gray-600">Manage policies, assess risk, and ensure compliance</p>
+          <p className="text-gray-600">Manage insurance policies and coverage details</p>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Upload className="h-4 w-4" />
-            Upload Policies
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-            <Plus className="h-4 w-4" />
-            New Policy
-          </button>
-        </div>
+        
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          <Plus className="h-4 w-4" />
+          New Policy
+        </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Policies</p>
-              <p className="text-2xl font-bold text-gray-900">{policyStats.total}</p>
+              <p className="text-sm font-medium text-blue-600">Active Policies</p>
+              <p className="text-2xl font-bold text-blue-900">
+                {policies.filter(p => p.status === 'ACTIVE').length}
+              </p>
             </div>
             <Shield className="h-8 w-8 text-blue-500" />
           </div>
@@ -186,18 +141,10 @@ export default function PolicyManagement() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Active Policies</p>
-              <p className="text-2xl font-bold text-green-900">{policyStats.active}</p>
-            </div>
-            <CheckCircle className="h-8 w-8 text-green-500" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Expiring Soon</p>
-              <p className="text-2xl font-bold text-yellow-900">{policyStats.expiringSoon}</p>
+              <p className="text-sm font-medium text-yellow-600">Pending Review</p>
+              <p className="text-2xl font-bold text-yellow-900">
+                {policies.filter(p => p.status === 'PENDING').length}
+              </p>
             </div>
             <Clock className="h-8 w-8 text-yellow-500" />
           </div>
@@ -206,72 +153,85 @@ export default function PolicyManagement() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Premium Value</p>
-              <p className="text-2xl font-bold text-purple-900">${(totalPremiumValue / 1000).toFixed(0)}k</p>
+              <p className="text-sm font-medium text-green-600">Premium Volume</p>
+              <p className="text-2xl font-bold text-green-900">
+                {formatCurrency(policies.reduce((sum, p) => sum + p.premiumAmount, 0))}
+              </p>
             </div>
-            <DollarSign className="h-8 w-8 text-purple-500" />
+            <DollarSign className="h-8 w-8 text-green-500" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-red-600">Claims Filed</p>
+              <p className="text-2xl font-bold text-red-900">
+                {policies.reduce((sum, p) => sum + p._count.claims, 0)}
+              </p>
+            </div>
+            <FileText className="h-8 w-8 text-red-500" />
           </div>
         </div>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by policy number or insured name..."
+              placeholder="Search policies, customers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="all">All Types</option>
-            <option value="auto">Auto</option>
-            <option value="home">Home</option>
-            <option value="commercial">Commercial</option>
-            <option value="life">Life</option>
-            <option value="health">Health</option>
-          </select>
-          
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="expired">Expired</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="pending">Pending</option>
-          </select>
+          <div className="flex gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Status</option>
+              <option value="ACTIVE">Active</option>
+              <option value="PENDING">Pending</option>
+              <option value="EXPIRED">Expired</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+            
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Types</option>
+              <option value="AUTO">Auto</option>
+              <option value="HOME">Home</option>
+              <option value="COMMERCIAL">Commercial</option>
+              <option value="LIFE">Life</option>
+              <option value="HEALTH">Health</option>
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Policies Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Policies ({filteredPolicies.length})
-          </h3>
-        </div>
-        
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Policy
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Insured
+                  Customer
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Premium
@@ -283,7 +243,7 @@ export default function PolicyManagement() {
                   Risk Score
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Compliance
+                  Claims
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -291,165 +251,397 @@ export default function PolicyManagement() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredPolicies.map((policy) => (
-                <tr key={policy.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      {getPolicyIcon(policy.policyType)}
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center">
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-3 text-gray-600">Loading policies...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : policies.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                    No policies found
+                  </td>
+                </tr>
+              ) : (
+                policies.map((policy) => (
+                  <tr key={policy.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
                           {policy.policyNumber}
                         </div>
-                        <div className="text-sm text-gray-500 capitalize">
-                          {policy.policyType}
+                        <div className="text-sm text-gray-500">
+                          {new Date(policy.effectiveDate).toLocaleDateString()} - 
+                          {new Date(policy.expirationDate).toLocaleDateString()}
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {policy.insuredName}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      Expires: {policy.expirationDate.toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      ${policy.premiumAmount.toLocaleString()}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      Deductible: ${policy.deductible}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded border ${getStatusColor(policy.status)}`}>
-                      {policy.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded ${getRiskColor(policy.riskScore)}`}>
-                      {policy.riskScore}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-sm font-medium ${getComplianceColor(policy.complianceStatus)}`}>
-                      {policy.complianceStatus.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setSelectedPolicy(policy)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button className="text-indigo-600 hover:text-indigo-900">
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button className="text-red-600 hover:text-red-900">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {getCustomerName(policy.customer)}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {policy.customer.email}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {policy.policyType}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {formatCurrency(policy.premiumAmount)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(policy.status)}`}>
+                        {policy.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-sm font-medium ${getRiskScoreColor(policy.riskScore)}`}>
+                        {policy.riskScore || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-gray-400" />
+                        {policy._count.claims}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedPolicy(policy);
+                            setShowDetailModal(true);
+                          }}
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          className="p-1 text-gray-600 hover:bg-gray-50 rounded"
+                          title="Edit Policy"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          className="p-1 text-gray-600 hover:bg-gray-50 rounded"
+                          title="More Actions"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* Policy Detail Modal */}
-      {selectedPolicy && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto m-4">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Policy Details - {selectedPolicy.policyNumber}
-              </h3>
-              <button 
-                onClick={() => setSelectedPolicy(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Policy Information</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Policy Type:</span>
-                      <span className="font-medium capitalize">{selectedPolicy.policyType}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Premium Amount:</span>
-                      <span className="font-medium">${selectedPolicy.premiumAmount.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Deductible:</span>
-                      <span className="font-medium">${selectedPolicy.deductible.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Effective Date:</span>
-                      <span className="font-medium">{selectedPolicy.effectiveDate.toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Expiration Date:</span>
-                      <span className="font-medium">{selectedPolicy.expirationDate.toLocaleDateString()}</span>
-                    </div>
-                  </div>
+      {showDetailModal && selectedPolicy && (
+        <PolicyDetailModal
+          policy={selectedPolicy}
+          onClose={() => {
+            setShowDetailModal(false);
+            setSelectedPolicy(null);
+          }}
+        />
+      )}
+
+      {/* Create Policy Modal */}
+      {showCreateModal && (
+        <CreatePolicyModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false);
+            fetchPolicies();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function PolicyDetailModal({ policy, onClose }: { policy: Policy; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto m-4">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Policy Details - {policy.policyNumber}
+          </h3>
+          <button 
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-xl"
+          >
+            ×
+          </button>
+        </div>
+        
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-medium text-gray-900 mb-3">Policy Information</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Policy Type:</span>
+                  <span className="font-medium">{policy.policyType}</span>
                 </div>
-                
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Risk Assessment</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm text-gray-600">Risk Score</span>
-                        <span className={`text-sm font-medium ${getRiskColor(selectedPolicy.riskScore)}`}>
-                          {selectedPolicy.riskScore}/100
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full ${
-                            selectedPolicy.riskScore < 30 ? 'bg-green-500' :
-                            selectedPolicy.riskScore < 60 ? 'bg-yellow-500' : 'bg-red-500'
-                          }`}
-                          style={{ width: `${selectedPolicy.riskScore}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    
-                    <div className="p-3 bg-gray-50 rounded">
-                      <p className="text-sm font-medium text-gray-900 mb-1">Compliance Status</p>
-                      <p className={`text-sm ${getComplianceColor(selectedPolicy.complianceStatus)}`}>
-                        {selectedPolicy.complianceStatus.replace('_', ' ').toUpperCase()}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Last reviewed: {selectedPolicy.lastReview.toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Status:</span>
+                  <span className={`font-medium px-2 py-1 rounded text-xs ${policy.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                    {policy.status}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Premium:</span>
+                  <span className="font-medium">${policy.premiumAmount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Deductible:</span>
+                  <span className="font-medium">${policy.deductible.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Effective Date:</span>
+                  <span className="font-medium">{new Date(policy.effectiveDate).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Expiration Date:</span>
+                  <span className="font-medium">{new Date(policy.expirationDate).toLocaleDateString()}</span>
                 </div>
               </div>
-
-              <div className="mt-6 flex justify-end gap-3">
-                <button className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
-                  Generate Report
-                </button>
-                <button className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700">
-                  Edit Policy
-                </button>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-gray-900 mb-3">Customer Information</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Name:</span>
+                  <span className="font-medium">
+                    {policy.customer.businessName || 
+                     `${policy.customer.firstName || ''} ${policy.customer.lastName || ''}`.trim()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Email:</span>
+                  <span className="font-medium">{policy.customer.email}</span>
+                </div>
               </div>
             </div>
           </div>
+
+          {policy.coverages && policy.coverages.length > 0 && (
+            <div className="mt-6">
+              <h4 className="font-medium text-gray-900 mb-3">Coverage Details</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Coverage Type</th>
+                      <th className="px-4 py-2 text-left">Limit</th>
+                      <th className="px-4 py-2 text-left">Deductible</th>
+                      <th className="px-4 py-2 text-left">Premium</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {policy.coverages.map((coverage, index) => (
+                      <tr key={index}>
+                        <td className="px-4 py-2">{coverage.type}</td>
+                        <td className="px-4 py-2">${coverage.limit.toLocaleString()}</td>
+                        <td className="px-4 py-2">${coverage.deductible.toLocaleString()}</td>
+                        <td className="px-4 py-2">${coverage.premium.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6 flex justify-end gap-3">
+            <button 
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+            >
+              Close
+            </button>
+            <button className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+              Edit Policy
+            </button>
+          </div>
         </div>
-      )}
+      </div>
+    </div>
+  );
+}
+
+function CreatePolicyModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [policyData, setPolicyData] = useState({
+    policyType: 'AUTO',
+    effectiveDate: new Date().toISOString().split('T')[0],
+    expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    premiumAmount: '',
+    deductible: ''
+  });
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await fetch('/api/customers?limit=100');
+      const data = await response.json();
+      setCustomers(data.customers || []);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch('/api/policies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: selectedCustomer,
+          ...policyData,
+          premiumAmount: parseFloat(policyData.premiumAmount),
+          deductible: parseFloat(policyData.deductible)
+        })
+      });
+
+      if (response.ok) {
+        onSuccess();
+      }
+    } catch (error) {
+      console.error('Error creating policy:', error);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full m-4">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Create New Policy</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+            <select
+              value={selectedCustomer}
+              onChange={(e) => setSelectedCustomer(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            >
+              <option value="">Select a customer</option>
+              {customers.map((customer: any) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.businessName || `${customer.firstName} ${customer.lastName}`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Policy Type</label>
+              <select
+                value={policyData.policyType}
+                onChange={(e) => setPolicyData({...policyData, policyType: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="AUTO">Auto</option>
+                <option value="HOME">Home</option>
+                <option value="COMMERCIAL">Commercial</option>
+                <option value="LIFE">Life</option>
+                <option value="HEALTH">Health</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Premium Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                value={policyData.premiumAmount}
+                onChange={(e) => setPolicyData({...policyData, premiumAmount: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Effective Date</label>
+              <input
+                type="date"
+                value={policyData.effectiveDate}
+                onChange={(e) => setPolicyData({...policyData, effectiveDate: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Expiration Date</label>
+              <input
+                type="date"
+                value={policyData.expirationDate}
+                onChange={(e) => setPolicyData({...policyData, expirationDate: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Deductible</label>
+            <input
+              type="number"
+              step="0.01"
+              value={policyData.deductible}
+              onChange={(e) => setPolicyData({...policyData, deductible: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            >
+              Create Policy
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
