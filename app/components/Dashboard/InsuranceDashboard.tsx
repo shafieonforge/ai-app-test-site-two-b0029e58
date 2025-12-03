@@ -10,53 +10,15 @@ import {
   AlertTriangle,
   Shield,
   BarChart3,
-  Calendar,
   CheckCircle,
   Clock,
-  XCircle
+  RefreshCw,
+  Download
 } from 'lucide-react';
-import { AnalyticsData } from '../../types/insurance';
 
 export default function InsuranceDashboard() {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [selectedMetric, setSelectedMetric] = useState<string>('claims');
-  const [dashboardData, setDashboardData] = useState<AnalyticsData | null>(null);
-
-  useEffect(() => {
-    // Simulate loading dashboard data
-    const loadDashboardData = async () => {
-      // Mock data - in real app, this would be an API call
-      const mockData: AnalyticsData = {
-        claimVolume: [
-          { period: 'Week 1', count: 45, totalValue: 234000, averageValue: 5200 },
-          { period: 'Week 2', count: 52, totalValue: 267000, averageValue: 5135 },
-          { period: 'Week 3', count: 38, totalValue: 198000, averageValue: 5211 },
-          { period: 'Week 4', count: 61, totalValue: 312000, averageValue: 5115 }
-        ],
-        policyMetrics: {
-          newPolicies: 1247,
-          renewals: 3891,
-          cancellations: 234,
-          premiumGrowth: 12.5
-        },
-        riskTrends: [
-          { category: 'Auto', trend: 'increasing', riskScore: 65 },
-          { category: 'Home', trend: 'stable', riskScore: 45 },
-          { category: 'Commercial', trend: 'decreasing', riskScore: 38 }
-        ],
-        fraudStats: {
-          alertsGenerated: 23,
-          investigationsOpened: 8,
-          fraudConfirmed: 3,
-          savingsEstimated: 145000
-        }
-      };
-
-      setDashboardData(mockData);
-    };
-
-    loadDashboardData();
-  }, [timeframe]);
 
   const quickStats = [
     {
@@ -109,6 +71,33 @@ export default function InsuranceDashboard() {
     }
   ];
 
+  const claimsData = [
+    { period: 'Week 1', count: 45, totalValue: 234000, averageValue: 5200 },
+    { period: 'Week 2', count: 52, totalValue: 267000, averageValue: 5135 },
+    { period: 'Week 3', count: 38, totalValue: 198000, averageValue: 5211 },
+    { period: 'Week 4', count: 61, totalValue: 312000, averageValue: 5115 }
+  ];
+
+  const riskTrends = [
+    { category: 'Auto', trend: 'increasing', riskScore: 65 },
+    { category: 'Home', trend: 'stable', riskScore: 45 },
+    { category: 'Commercial', trend: 'decreasing', riskScore: 38 }
+  ];
+
+  const fraudStats = {
+    alertsGenerated: 23,
+    investigationsOpened: 8,
+    fraudConfirmed: 3,
+    savingsEstimated: 145000
+  };
+
+  const policyMetrics = {
+    newPolicies: 1247,
+    renewals: 3891,
+    cancellations: 234,
+    premiumGrowth: 12.5
+  };
+
   const getStatColor = (color: string) => {
     const colors = {
       blue: 'bg-blue-50 text-blue-600',
@@ -151,8 +140,13 @@ export default function InsuranceDashboard() {
             <option value="90d">Last 90 days</option>
             <option value="1y">Last year</option>
           </select>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            Generate Report
+          <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <Download className="h-4 w-4" />
+            Export Report
           </button>
         </div>
       </div>
@@ -211,12 +205,11 @@ export default function InsuranceDashboard() {
             </div>
           </div>
           
-          {/* Simple Bar Chart Representation */}
           <div className="space-y-4">
-            {dashboardData?.claimVolume.map((period, index) => {
+            {claimsData.map((period, index) => {
               const maxValue = selectedMetric === 'claims' 
-                ? Math.max(...dashboardData.claimVolume.map(p => p.count))
-                : Math.max(...dashboardData.claimVolume.map(p => p.totalValue));
+                ? Math.max(...claimsData.map(p => p.count))
+                : Math.max(...claimsData.map(p => p.totalValue));
               const currentValue = selectedMetric === 'claims' ? period.count : period.totalValue;
               const percentage = (currentValue / maxValue) * 100;
               
@@ -248,7 +241,7 @@ export default function InsuranceDashboard() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Risk Assessment by Category</h3>
           <div className="space-y-4">
-            {dashboardData?.riskTrends.map((risk, index) => (
+            {riskTrends.map((risk, index) => (
               <div key={index} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-900">{risk.category}</span>
@@ -287,25 +280,25 @@ export default function InsuranceDashboard() {
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-4 bg-red-50 rounded-lg">
               <p className="text-2xl font-bold text-red-600">
-                {dashboardData?.fraudStats.alertsGenerated}
+                {fraudStats.alertsGenerated}
               </p>
               <p className="text-sm text-gray-600">Alerts Generated</p>
             </div>
             <div className="text-center p-4 bg-orange-50 rounded-lg">
               <p className="text-2xl font-bold text-orange-600">
-                {dashboardData?.fraudStats.investigationsOpened}
+                {fraudStats.investigationsOpened}
               </p>
               <p className="text-sm text-gray-600">Under Investigation</p>
             </div>
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <p className="text-2xl font-bold text-green-600">
-                {dashboardData?.fraudStats.fraudConfirmed}
+                {fraudStats.fraudConfirmed}
               </p>
               <p className="text-sm text-gray-600">Fraud Confirmed</p>
             </div>
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <p className="text-2xl font-bold text-blue-600">
-                ${(dashboardData?.fraudStats.savingsEstimated || 0) / 1000}k
+                ${fraudStats.savingsEstimated / 1000}k
               </p>
               <p className="text-sm text-gray-600">Estimated Savings</p>
             </div>
@@ -327,7 +320,7 @@ export default function InsuranceDashboard() {
               </div>
               <div className="text-right">
                 <p className="text-xl font-bold text-blue-600">
-                  {dashboardData?.policyMetrics.newPolicies.toLocaleString()}
+                  {policyMetrics.newPolicies.toLocaleString()}
                 </p>
                 <div className="flex items-center gap-1 text-green-600">
                   <TrendingUp className="h-3 w-3" />
@@ -343,7 +336,7 @@ export default function InsuranceDashboard() {
               </div>
               <div className="text-right">
                 <p className="text-xl font-bold text-green-600">
-                  {dashboardData?.policyMetrics.renewals.toLocaleString()}
+                  {policyMetrics.renewals.toLocaleString()}
                 </p>
                 <div className="flex items-center gap-1 text-green-600">
                   <TrendingUp className="h-3 w-3" />
@@ -359,7 +352,7 @@ export default function InsuranceDashboard() {
               </div>
               <div className="text-right">
                 <p className="text-xl font-bold text-gray-900">
-                  {dashboardData?.policyMetrics.premiumGrowth}%
+                  {policyMetrics.premiumGrowth}%
                 </p>
                 <div className="flex items-center gap-1 text-green-600">
                   <TrendingUp className="h-3 w-3" />

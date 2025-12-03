@@ -1,4 +1,3 @@
-// Enterprise Insurance Types
 export interface User {
   id: string;
   email: string;
@@ -21,7 +20,7 @@ export interface Organization {
 
 export interface OrganizationSettings {
   autoProcessing: boolean;
-  retentionPeriod: number; // days
+  retentionPeriod: number;
   complianceLevel: 'basic' | 'enhanced' | 'strict';
   integrations: string[];
 }

@@ -12,31 +12,45 @@ import {
   Calendar,
   MapPin,
   User,
-  Car,
-  Home,
-  Shield,
-  TrendingUp,
   Download,
   Eye,
   Flag
 } from 'lucide-react';
-import { ClaimDocument, FraudAlert } from '../../types/insurance';
+
+interface ClaimDocument {
+  id: string;
+  claimNumber: string;
+  policyNumber: string;
+  documentType: 'incident_report' | 'estimate' | 'photos' | 'police_report' | 'medical_records';
+  extractedData: {
+    incidentDate?: Date;
+    lossAmount?: number;
+    damageDescription?: string;
+    parties?: any[];
+    location?: any;
+  };
+  confidence: number;
+  flags: string[];
+  processingStatus: 'pending' | 'processed' | 'review_required' | 'approved';
+}
 
 interface ClaimsProcessorProps {
   onDocumentProcessed: (document: ClaimDocument) => void;
-  onFraudDetected: (alert: FraudAlert) => void;
+  onFraudDetected: (alert: any) => void;
 }
 
 export default function ClaimsProcessor({ onDocumentProcessed, onFraudDetected }: ClaimsProcessorProps) {
   const [processingFiles, setProcessingFiles] = useState<any[]>([]);
   const [processedClaims, setProcessedClaims] = useState<ClaimDocument[]>([]);
   const [selectedClaim, setSelectedClaim] = useState<ClaimDocument | null>(null);
-  const [fraudAlerts, setFraudAlerts] = useState<FraudAlert[]>([]);
+  const [fraudAlerts, setFraudAlerts] = useState<any[]>([]);
 
-  const handleFileUpload = async (files: FileList) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
     const fileArray = Array.from(files);
     
-    // Start processing animation
     const newProcessingFiles = fileArray.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
@@ -46,7 +60,6 @@ export default function ClaimsProcessor({ onDocumentProcessed, onFraudDetected }
     
     setProcessingFiles(newProcessingFiles);
 
-    // Simulate AI processing
     for (const file of fileArray) {
       await processClaimDocument(file);
     }
@@ -55,24 +68,21 @@ export default function ClaimsProcessor({ onDocumentProcessed, onFraudDetected }
   };
 
   const processClaimDocument = async (file: File) => {
-    // Simulate AI processing delay
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Generate mock claim data based on file type
     const mockClaimData: ClaimDocument = {
       id: Math.random().toString(36).substr(2, 9),
       claimNumber: `CLM-${Date.now().toString().slice(-6)}`,
       policyNumber: `POL-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
       documentType: getDocumentType(file.name),
       extractedData: generateMockClaimData(file.name),
-      confidence: Math.floor(Math.random() * 20) + 80, // 80-100%
+      confidence: Math.floor(Math.random() * 20) + 80,
       flags: generateFlags(),
       processingStatus: 'processed'
     };
 
-    // Check for potential fraud
     if (mockClaimData.extractedData.lossAmount && mockClaimData.extractedData.lossAmount > 50000) {
-      const fraudAlert: FraudAlert = {
+      const fraudAlert = {
         id: Math.random().toString(36).substr(2, 9),
         type: 'excessive_claims',
         severity: 'high',
@@ -99,7 +109,7 @@ export default function ClaimsProcessor({ onDocumentProcessed, onFraudDetected }
   };
 
   const generateMockClaimData = (filename: string) => {
-    const data: any = {
+    return {
       incidentDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
       lossAmount: Math.floor(Math.random() * 75000) + 5000,
       damageDescription: getDamageDescription(filename),
@@ -118,8 +128,6 @@ export default function ClaimsProcessor({ onDocumentProcessed, onFraudDetected }
         zipCode: '62701'
       }
     };
-
-    return data;
   };
 
   const getDamageDescription = (filename: string): string => {
@@ -143,7 +151,7 @@ export default function ClaimsProcessor({ onDocumentProcessed, onFraudDetected }
       case 'photos':
         return <Image className="h-5 w-5 text-blue-500" />;
       case 'police_report':
-        return <Shield className="h-5 w-5 text-red-500" />;
+        return <Flag className="h-5 w-5 text-red-500" />;
       case 'estimate':
         return <DollarSign className="h-5 w-5 text-green-500" />;
       case 'medical_records':
@@ -178,12 +186,12 @@ export default function ClaimsProcessor({ onDocumentProcessed, onFraudDetected }
         </div>
         
         <div className="p-6">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors relative">
             <input
               type="file"
               multiple
               accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-              onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+              onChange={handleFileUpload}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
             <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -253,8 +261,7 @@ export default function ClaimsProcessor({ onDocumentProcessed, onFraudDetected }
         
         <div className="divide-y divide-gray-200">
           {processedClaims.map((claim) => (
-            <div key={claim.id} className="p-6 hover:bg-gray-50 cursor-pointer"
-                 onClick={() => setSelectedClaim(claim)}>
+            <div key={claim.id} className="p-6 hover:bg-gray-50">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
                   {getDocumentIcon(claim.documentType)}
@@ -302,7 +309,10 @@ export default function ClaimsProcessor({ onDocumentProcessed, onFraudDetected }
                 </div>
                 
                 <div className="flex gap-2">
-                  <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded">
+                  <button 
+                    onClick={() => setSelectedClaim(claim)}
+                    className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                  >
                     <Eye className="h-4 w-4" />
                   </button>
                   <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded">
@@ -332,7 +342,7 @@ export default function ClaimsProcessor({ onDocumentProcessed, onFraudDetected }
               </h3>
               <button 
                 onClick={() => setSelectedClaim(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 text-xl"
               >
                 ×
               </button>
@@ -393,8 +403,11 @@ export default function ClaimsProcessor({ onDocumentProcessed, onFraudDetected }
               )}
 
               <div className="mt-6 flex justify-end gap-3">
-                <button className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
-                  Request Review
+                <button 
+                  onClick={() => setSelectedClaim(null)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  Close
                 </button>
                 <button className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700">
                   Approve Claim
